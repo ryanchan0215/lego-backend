@@ -1,22 +1,26 @@
 const { Pool } = require('pg');
+const dns = require('dns');
 require('dotenv').config();
 
-// ✅ 改用 DATABASE_URL
+// 強制 IPv4
+dns.setDefaultResultOrder('ipv4first');
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  connectionTimeoutMillis: 10000
 });
 
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('❌ 資料庫連接錯誤:', err.message);
-    console.error('詳細錯誤:', err);
-  } else {
+(async () => {
+  try {
+    const client = await pool.connect();
     console.log('✅ 資料庫連接成功');
-    release();
+    client.release();
+  } catch (err) {
+    console.error('❌ 連接失敗:', err.message);
   }
-});
+})();
 
 module.exports = pool;
