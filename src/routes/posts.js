@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 // ========================================
-// 📝 發佈交易（✅ condition 存入 post_items）
+// 📝 發佈交易（✅ 加入 image_url 支援）
 // ========================================
 router.post('/', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -54,6 +54,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const post = postResult.rows[0];
 
+    // ✅ 加入 image_url 支援
     for (const item of items) {
       await client.query(
         `INSERT INTO post_items (
@@ -64,9 +65,10 @@ router.post('/', authenticateToken, async (req, res) => {
           color, 
           quantity, 
           price_per_unit,
-          condition
+          condition,
+          image_url
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           post.id, 
           item.part_number, 
@@ -75,7 +77,8 @@ router.post('/', authenticateToken, async (req, res) => {
           item.color, 
           item.quantity, 
           item.price_per_unit,
-          item.condition || null
+          item.condition || null,
+          item.image_url || null
         ]
       );
     }
@@ -98,7 +101,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 📋 取得所有交易（✅ 從 post_items 讀取 condition）
+// 📋 取得所有交易（✅ 加入 image_url）
 // ========================================
 router.get('/', async (req, res) => {
   try {
@@ -124,7 +127,8 @@ router.get('/', async (req, res) => {
             'color', pi.color,
             'quantity', pi.quantity,
             'price_per_unit', pi.price_per_unit,
-            'condition', pi.condition
+            'condition', pi.condition,
+            'image_url', pi.image_url
           ) ORDER BY pi.id
         ) as items
       FROM posts p
@@ -161,7 +165,7 @@ router.get('/', async (req, res) => {
 });
 
 // ========================================
-// 📦 取得我的交易（✅ 從 post_items 讀取 condition）
+// 📦 取得我的交易（✅ 加入 image_url）
 // ========================================
 router.get('/my-posts', authenticateToken, async (req, res) => {
   try {
@@ -181,7 +185,8 @@ router.get('/my-posts', authenticateToken, async (req, res) => {
                   'color', pi.color,
                   'quantity', pi.quantity,
                   'price_per_unit', pi.price_per_unit,
-                  'condition', pi.condition
+                  'condition', pi.condition,
+                  'image_url', pi.image_url
                 ) ORDER BY pi.id
               ) as items
        FROM posts p
@@ -202,11 +207,10 @@ router.get('/my-posts', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 👑 管理員：取得所有用戶的交易（✅ 修正這裡）
+// 👑 管理員：取得所有用戶的交易（✅ 加入 image_url）
 // ========================================
 router.get('/all-posts', authenticateToken, async (req, res) => {
   try {
-    // ✅ 改用 is_admin 檢查
     if (!req.user.is_admin) {
       return res.status(403).json({ error: '無權限訪問' });
     }
@@ -228,7 +232,8 @@ router.get('/all-posts', authenticateToken, async (req, res) => {
                   'color', pi.color,
                   'quantity', pi.quantity,
                   'price_per_unit', pi.price_per_unit,
-                  'condition', pi.condition
+                  'condition', pi.condition,
+                  'image_url', pi.image_url
                 ) ORDER BY pi.id
               ) as items
        FROM posts p
@@ -248,7 +253,7 @@ router.get('/all-posts', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// ✏️ 編輯貼文（✅ 修正：更新 post_items.condition）
+// ✏️ 編輯貼文（✅ 加入 image_url 更新）
 // ========================================
 router.put('/:id/edit', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -299,6 +304,7 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
       [userId, newBalance, `編輯貼文 #${postId}`]
     );
 
+    // ✅ 加入 image_url 更新
     for (const item of items) {
       const itemCheck = await client.query(
         'SELECT * FROM post_items WHERE id = $1 AND post_id = $2',
@@ -314,9 +320,16 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
         `UPDATE post_items 
          SET quantity = $1, 
              price_per_unit = $2, 
-             condition = $3
-         WHERE id = $4`,
-        [item.quantity, item.price_per_unit, item.condition || null, item.id]
+             condition = $3,
+             image_url = $4
+         WHERE id = $5`,
+        [
+          item.quantity, 
+          item.price_per_unit, 
+          item.condition || null,
+          item.image_url || null,
+          item.id
+        ]
       );
     }
 
@@ -549,7 +562,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const postId = req.params.id;
     const userId = req.user.id;
-    const isAdmin = req.user.is_admin;  // ✅ 改用 is_admin
+    const isAdmin = req.user.is_admin;
 
     const postResult = await pool.query(
       'SELECT user_id FROM posts WHERE id = $1',
@@ -562,7 +575,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     const postOwnerId = postResult.rows[0].user_id;
 
-    // ✅ 改用 is_admin 檢查
     if (postOwnerId !== userId && !isAdmin) {
       return res.status(403).json({ error: '無權限刪除此貼文' });
     }
