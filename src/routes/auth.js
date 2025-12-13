@@ -78,7 +78,7 @@ router.post('/register', async (req, res) => {
     // 創建新用戶
     const result = await pool.query(
       `INSERT INTO users (username, email, phone, password_hash, tokens) 
-       VALUES ($1, $2, $3, $4, 3) 
+       VALUES ($1, $2, $3, $4, 10) 
        RETURNING id, username, email, phone, tokens, is_admin, created_at`,
       [username, email, phone, passwordHash]
     );
