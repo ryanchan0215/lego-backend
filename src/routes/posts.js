@@ -14,6 +14,9 @@ router.post('/', authenticateToken, async (req, res) => {
     const { type, items, contact_info, notes } = req.body;
     const userId = req.user.id;
 
+    // ✅ Debug log
+    console.log('📸 收到嘅 items:', JSON.stringify(items, null, 2));
+
     if (!type || !items || items.length === 0) {
       return res.status(400).json({ error: '請填寫交易類型和配件清單' });
     }
@@ -356,23 +359,9 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// ❤️ 點讚/取消點讚
+// ❤️ 點讚/取消點讚（✅ 修正）
 // ========================================
 router.post('/:id/like', authenticateToken, async (req, res) => {
-
-  const client = await pool.connect();
-  
-  try {
-    const { type, items, contact_info, notes } = req.body;
-    const userId = req.user.id;
-
-    // ✅ 加呢行 debug
-    console.log('📸 收到嘅 items:', JSON.stringify(items, null, 2));
-
-    if (!type || !items || items.length === 0) {
-      return res.status(400).json({ error: '請填寫交易類型和配件清單' });
-    }
-
   try {
     const postId = req.params.id;
     const userId = req.user.id;
@@ -425,9 +414,6 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     console.error('點讚錯誤:', error);
     res.status(500).json({ error: '操作失敗' });
   }
-
-
-
 });
 
 // ========================================
