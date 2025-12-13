@@ -14,7 +14,6 @@ router.post('/', authenticateToken, async (req, res) => {
     const { type, items, contact_info, notes } = req.body;
     const userId = req.user.id;
 
-    // ✅ Debug log
     console.log('📸 收到嘅 items:', JSON.stringify(items, null, 2));
 
     if (!type || !items || items.length === 0) {
