@@ -6,7 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 router.use(authenticateToken);
 
 // ========================================
-// 📋 獲取用戶所有對話
+// 📋 獲取用戶所有對話（✅ 改用新欄位名）
 // ========================================
 router.get('/', async (req, res) => {
   try {
@@ -23,12 +23,12 @@ router.get('/', async (req, res) => {
         c.buyer_id,
         c.seller_id,
         
-        -- ✅ 獲取帖子的第一個配件資料
+        -- ✅ 獲取帖子的第一個產品資料（新欄位名）
         (
           SELECT json_build_object(
-            'part_number', pi.part_number,
-            'color', pi.color,
-            'quantity', pi.quantity,
+            'item_description', pi.item_description,
+            'category', pi.category,
+            'brand', pi.brand,
             'price_per_unit', pi.price_per_unit
           )
           FROM post_items pi
@@ -79,7 +79,7 @@ router.get('/', async (req, res) => {
 
     console.log('✅ 成功獲取對話，數量:', result.rows.length);
 
-    // ✅ 格式化數據
+    // ✅ 格式化數據（使用新欄位名）
     const conversations = result.rows.map(row => {
       const item = row.post_item || {};
       
@@ -89,12 +89,12 @@ router.get('/', async (req, res) => {
         last_message_at: row.last_message_at,
         created_at: row.created_at,
         
-        // ✅ 商品標題（使用配件資訊）
-        post_title: item.part_number 
-          ? `#${item.part_number} ${item.color} ×${item.quantity}` 
-          : '配件詳情',
+        // ✅ 產品標題（使用新欄位）
+        post_title: item.item_description 
+          ? `${item.item_description} · ${item.category}` 
+          : '產品詳情',
         
-        // ✅ 商品詳細資訊
+        // ✅ 產品詳細資訊
         post_item: item,
         post_type: row.post_type,
         
@@ -103,7 +103,7 @@ router.get('/', async (req, res) => {
           username: row.other_username
         },
         last_message: row.last_message,
-        last_message_time: row.last_message_at,  // ✅ 加這個
+        last_message_time: row.last_message_at,
         unread_count: row.unread_count
       };
     });
@@ -119,7 +119,7 @@ router.get('/', async (req, res) => {
 });
 
 // ========================================
-// 💬 開始/獲取對話
+// 💬 開始/獲取對話（✅ 唔使改）
 // ========================================
 router.post('/', async (req, res) => {
   try {
@@ -179,7 +179,7 @@ router.post('/', async (req, res) => {
 });
 
 // ========================================
-// 📜 獲取對話訊息
+// 📜 獲取對話訊息（✅ 唔使改）
 // ========================================
 router.get('/:id/messages', async (req, res) => {
   try {
@@ -223,7 +223,7 @@ router.get('/:id/messages', async (req, res) => {
 });
 
 // ========================================
-// ✉️ 發送訊息
+// ✉️ 發送訊息（✅ 唔使改）
 // ========================================
 router.post('/:id/messages', async (req, res) => {
   try {
@@ -269,7 +269,7 @@ router.post('/:id/messages', async (req, res) => {
 });
 
 // ========================================
-// ✅ 標記對話已讀
+// ✅ 標記對話已讀（✅ 唔使改）
 // ========================================
 router.put('/:id/read', async (req, res) => {
   try {
@@ -293,7 +293,7 @@ router.put('/:id/read', async (req, res) => {
 });
 
 // ========================================
-// 🔔 獲取未讀訊息總數
+// 🔔 獲取未讀訊息總數（✅ 唔使改）
 // ========================================
 router.get('/unread-count', async (req, res) => {
   try {

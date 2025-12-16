@@ -5,7 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 // ========================================
-// 📝 發佈交易（✅ 加入 image_url 支援）
+// 📝 發佈交易（✅ 改用新 DB 欄位名）
 // ========================================
 router.post('/', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -17,7 +17,7 @@ router.post('/', authenticateToken, async (req, res) => {
     console.log('📸 收到嘅 items:', JSON.stringify(items, null, 2));
 
     if (!type || !items || items.length === 0) {
-      return res.status(400).json({ error: '請填寫交易類型和配件清單' });
+      return res.status(400).json({ error: '請填寫交易類型和產品清單' });
     }
 
     await client.query('BEGIN');
@@ -56,28 +56,24 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const post = postResult.rows[0];
 
-    // ✅ 加入 image_url 支援
+    // ✅ 改用新欄位名
     for (const item of items) {
       await client.query(
         `INSERT INTO post_items (
           post_id, 
-          part_number, 
-          part_name, 
-          part_image_url, 
-          color, 
-          quantity, 
+          item_description, 
+          category, 
+          brand, 
           price_per_unit,
           condition,
           image_url
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           post.id, 
-          item.part_number, 
-          item.part_name || null, 
-          item.part_image_url || null, 
-          item.color, 
-          item.quantity, 
+          item.item_description,     // ✅ 改名
+          item.category,             // ✅ 改名
+          item.brand || null,        // ✅ 改名
           item.price_per_unit,
           item.condition || null,
           item.image_url || null
@@ -103,7 +99,7 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 📋 取得所有交易（✅ 加入 image_url）
+// 📋 取得所有交易（✅ 改用新欄位名）
 // ========================================
 router.get('/', async (req, res) => {
   try {
@@ -123,11 +119,9 @@ router.get('/', async (req, res) => {
         json_agg(
           json_build_object(
             'id', pi.id,
-            'part_number', pi.part_number,
-            'part_name', pi.part_name,
-            'part_image_url', pi.part_image_url,
-            'color', pi.color,
-            'quantity', pi.quantity,
+            'item_description', pi.item_description,
+            'category', pi.category,
+            'brand', pi.brand,
             'price_per_unit', pi.price_per_unit,
             'condition', pi.condition,
             'image_url', pi.image_url
@@ -167,7 +161,7 @@ router.get('/', async (req, res) => {
 });
 
 // ========================================
-// 📦 取得我的交易（✅ 加入 image_url）
+// 📦 取得我的交易（✅ 改用新欄位名）
 // ========================================
 router.get('/my-posts', authenticateToken, async (req, res) => {
   try {
@@ -181,11 +175,9 @@ router.get('/my-posts', authenticateToken, async (req, res) => {
               json_agg(
                 json_build_object(
                   'id', pi.id,
-                  'part_number', pi.part_number,
-                  'part_name', pi.part_name,
-                  'part_image_url', pi.part_image_url,
-                  'color', pi.color,
-                  'quantity', pi.quantity,
+                  'item_description', pi.item_description,
+                  'category', pi.category,
+                  'brand', pi.brand,
                   'price_per_unit', pi.price_per_unit,
                   'condition', pi.condition,
                   'image_url', pi.image_url
@@ -209,7 +201,7 @@ router.get('/my-posts', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 👑 管理員：取得所有用戶的交易（✅ 加入 image_url）
+// 👑 管理員：取得所有用戶的交易（✅ 改用新欄位名）
 // ========================================
 router.get('/all-posts', authenticateToken, async (req, res) => {
   try {
@@ -228,11 +220,9 @@ router.get('/all-posts', authenticateToken, async (req, res) => {
               json_agg(
                 json_build_object(
                   'id', pi.id,
-                  'part_number', pi.part_number,
-                  'part_name', pi.part_name,
-                  'part_image_url', pi.part_image_url,
-                  'color', pi.color,
-                  'quantity', pi.quantity,
+                  'item_description', pi.item_description,
+                  'category', pi.category,
+                  'brand', pi.brand,
                   'price_per_unit', pi.price_per_unit,
                   'condition', pi.condition,
                   'image_url', pi.image_url
@@ -255,7 +245,7 @@ router.get('/all-posts', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// ✏️ 編輯貼文（✅ 加入 image_url 更新）
+// ✏️ 編輯貼文（✅ 改用新欄位名）
 // ========================================
 router.put('/:id/edit', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -266,7 +256,7 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
     const { items } = req.body;
 
     if (!items || items.length === 0) {
-      return res.status(400).json({ error: '請提供要修改的配件資料' });
+      return res.status(400).json({ error: '請提供要修改的產品資料' });
     }
 
     await client.query('BEGIN');
@@ -306,7 +296,7 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
       [userId, newBalance, `編輯貼文 #${postId}`]
     );
 
-    // ✅ 加入 image_url 更新
+    // ✅ 改用新欄位名（只更新 brand, price_per_unit, condition, image_url）
     for (const item of items) {
       const itemCheck = await client.query(
         'SELECT * FROM post_items WHERE id = $1 AND post_id = $2',
@@ -315,18 +305,18 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
 
       if (itemCheck.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ error: `配件 ID ${item.id} 不屬於此貼文` });
+        return res.status(400).json({ error: `產品 ID ${item.id} 不屬於此貼文` });
       }
 
       await client.query(
         `UPDATE post_items 
-         SET quantity = $1, 
+         SET brand = $1, 
              price_per_unit = $2, 
              condition = $3,
              image_url = $4
          WHERE id = $5`,
         [
-          item.quantity, 
+          item.brand || null,       // ✅ 改名
           item.price_per_unit, 
           item.condition || null,
           item.image_url || null,
@@ -358,7 +348,7 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// ❤️ 點讚/取消點讚（✅ 修正）
+// ❤️ 點讚/取消點讚（✅ 唔使改）
 // ========================================
 router.post('/:id/like', authenticateToken, async (req, res) => {
   try {
@@ -416,7 +406,7 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 💬 獲取帖子留言（半私密）
+// 💬 獲取帖子留言（✅ 唔使改）
 // ========================================
 router.get('/:id/comments', authenticateToken, async (req, res) => {
   try {
@@ -470,7 +460,7 @@ router.get('/:id/comments', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 💬 新增留言
+// 💬 新增留言（✅ 唔使改）
 // ========================================
 router.post('/:id/comments', authenticateToken, async (req, res) => {
   try {
@@ -525,7 +515,7 @@ router.post('/:id/comments', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// 🗑️ 刪除留言
+// 🗑️ 刪除留言（✅ 唔使改）
 // ========================================
 router.delete('/:postId/comments/:commentId', authenticateToken, async (req, res) => {
   try {
@@ -558,7 +548,7 @@ router.delete('/:postId/comments/:commentId', authenticateToken, async (req, res
 });
 
 // ========================================
-// 🗑️ 刪除交易（✅ 支援管理員刪除所有貼文）
+// 🗑️ 刪除交易（✅ 唔使改）
 // ========================================
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
