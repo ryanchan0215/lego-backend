@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 5000;
 // 🔧 中介軟體
 // ========================================
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',  // ✅ 改用環境變數
+  origin: process.env.FRONTEND_URL || '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -37,11 +37,11 @@ app.use('/api/tokens', tokensRoutes);
 // ========================================
 app.get('/', (req, res) => {
   res.json({ 
-    name: '🧱 樂高配件交易平台 API',
+    name: '👶 嬰幼兒產品交易平台 API',  // ✅ 改
     version: '1.0.0',
     status: 'running',
-    environment: process.env.NODE_ENV || 'development',  // ✅ 加環境資訊
-    timestamp: new Date().toISOString(),  // ✅ 加時間戳
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
     endpoints: {
       health: '/api/health',
       authentication: '/api/auth',
@@ -61,7 +61,7 @@ app.get('/api/health', (req, res) => {
     status: 'ok', 
     message: '伺服器運行正常',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()  // ✅ 加運行時間
+    uptime: process.uptime()
   });
 });
 
@@ -90,7 +90,7 @@ app.use((err, req, res, next) => {
 // ========================================
 // 🚀 啟動伺服器
 // ========================================
-app.listen(PORT, '0.0.0.0', () => {  // ✅ 綁定所有網絡介面
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 伺服器運行在 port ${PORT}`);
   console.log(`📝 環境: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌍 CORS 允許來源: ${process.env.FRONTEND_URL || '*'}`);
