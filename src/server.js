@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
+const path = require('path');  // ✅ 加返呢行（雖然唔再用，但保留住先）
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -8,7 +8,7 @@ const postsRoutes = require('./routes/posts');
 const conversationsRoutes = require('./routes/conversations');
 const adminRoutes = require('./routes/admin');
 const tokensRoutes = require('./routes/tokens');
-const resourcesRoutes = require('./routes/resources');  // ✅ 新增
+const resourcesRoutes = require('./routes/resources');  // ✅ 確認有呢行
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,8 +25,8 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✅ 提供靜態檔案（PDF 下載）
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// ❌ 唔再需要呢行（但如果你其他地方有用 uploads，就保留）
+// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ========================================
 // 🛣️ 路由
@@ -36,7 +36,7 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tokens', tokensRoutes);
-app.use('/api/resources', resourcesRoutes);  // ✅ 新增
+app.use('/api/resources', resourcesRoutes);  // ✅ 確認有呢行
 
 // ========================================
 // 🏠 根路徑
@@ -55,7 +55,7 @@ app.get('/', (req, res) => {
       conversations: '/api/conversations',
       admin: '/api/admin',
       tokens: '/api/tokens',
-      resources: '/api/resources'  // ✅ 新增
+      resources: '/api/resources'  // ✅ 確認有呢行
     }
   });
 });
