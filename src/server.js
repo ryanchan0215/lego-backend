@@ -22,9 +22,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ✅ 加這行處理 Preflight
-app.options('*', cors());
-
 // ✅ 簡單版（支援 JSON）
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));

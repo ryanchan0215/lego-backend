@@ -49,7 +49,7 @@ router.post('/upload', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: '請填寫所有必填欄位' });
     }
 
-    // ✅ 儲存到資料庫，初始化 download_count 為 0
+    // ✅ 直接儲存到資料庫（檔案已在 Supabase）
     const result = await pool.query(
       `INSERT INTO resources (
         title, 
@@ -58,10 +58,9 @@ router.post('/upload', authenticateToken, async (req, res) => {
         file_name, 
         file_path, 
         file_size, 
-        uploaded_by,
-        download_count
+        uploaded_by
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *`,
       [
         title,
@@ -94,40 +93,6 @@ router.post('/upload', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// ✅ 記錄下載統計（需要登入）
-// ========================================
-router.post('/:id/download', authenticateToken, async (req, res) => {
-  try {
-    const resourceId = req.params.id;
-
-    // ✅ 增加下載次數
-    const result = await pool.query(
-      `UPDATE resources 
-       SET download_count = download_count + 1 
-       WHERE id = $1 
-       RETURNING download_count`,
-      [resourceId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: '資源不存在' });
-    }
-
-    res.json({ 
-      success: true,
-      download_count: result.rows[0].download_count
-    });
-
-  } catch (error) {
-    console.error('❌ 記錄下載失敗:', error);
-    res.status(500).json({ 
-      error: '記錄下載失敗',
-      details: error.message 
-    });
-  }
-});
-
-// ========================================
 // 🗑️ 刪除資源（只限管理員）
 // ========================================
 router.delete('/:id', authenticateToken, async (req, res) => {
@@ -138,6 +103,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     const resourceId = req.params.id;
 
+    // 從資料庫刪除（檔案保留在 Supabase，如需刪除可加 Supabase API）
     const result = await pool.query(
       'DELETE FROM resources WHERE id = $1 RETURNING *',
       [resourceId]
