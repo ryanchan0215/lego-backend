@@ -100,3 +100,26 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📝 環境: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌍 CORS 允許來源: ${process.env.FRONTEND_URL || '*'}`);
 });
+
+
+// ✅ 記錄下載統計
+app.post('/resources/:id/download', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // ✅ 增加下載次數
+    const { error } = await supabase
+      .from('resources')
+      .update({ 
+        download_count: supabase.rpc('increment', { row_id: id })
+      })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('記錄下載失敗:', error);
+    res.status(500).json({ error: '記錄下載失敗' });
+  }
+});
