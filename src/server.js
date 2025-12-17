@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -7,6 +8,7 @@ const postsRoutes = require('./routes/posts');
 const conversationsRoutes = require('./routes/conversations');
 const adminRoutes = require('./routes/admin');
 const tokensRoutes = require('./routes/tokens');
+const resourcesRoutes = require('./routes/resources');  // ✅ 新增
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +25,9 @@ app.use(cors({
 
 app.use(express.json());
 
+// ✅ 提供靜態檔案（PDF 下載）
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // ========================================
 // 🛣️ 路由
 // ========================================
@@ -31,13 +36,14 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tokens', tokensRoutes);
+app.use('/api/resources', resourcesRoutes);  // ✅ 新增
 
 // ========================================
 // 🏠 根路徑
 // ========================================
 app.get('/', (req, res) => {
   res.json({ 
-    name: '👶 嬰幼兒產品交易平台 API',  // ✅ 改
+    name: '👶 嬰幼兒產品交易平台 API',
     version: '1.0.0',
     status: 'running',
     environment: process.env.NODE_ENV || 'development',
@@ -48,7 +54,8 @@ app.get('/', (req, res) => {
       posts: '/api/posts',
       conversations: '/api/conversations',
       admin: '/api/admin',
-      tokens: '/api/tokens'
+      tokens: '/api/tokens',
+      resources: '/api/resources'  // ✅ 新增
     }
   });
 });

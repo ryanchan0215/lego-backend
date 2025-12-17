@@ -1,3 +1,1768 @@
+# 🚀 Lego Forum Backend - Project Summary
+
+**生成時間**: 2025-12-17 23:27:39
+**項目路徑**: E:\Lego\lego-backend
+
+---
+
+## 📁 Backend File Structure
+
+```
+├── src
+│   ├── config
+│   ├── middleware
+│   │   └── auth.js (701B)
+│   ├── routes
+│   │   ├── admin.js (5.5KB)
+│   │   ├── auth.js (6.2KB)
+│   │   ├── conversations.js (9.2KB)
+│   │   ├── leog.js (914B)
+│   │   ├── posts.js (15.7KB)
+│   │   ├── sms.js (2.2KB)
+│   │   └── tokens.js (1.8KB)
+│   ├── db.js (558B)
+│   └── server.js (2.9KB)
+├── .env (271B)
+├── .gitignore (58B)
+├── generate_backend_summary.py (11.7KB)
+├── package-lock.json (58.7KB)
+└── package.json (407B)
+```
+
+---
+
+## 📦 Dependencies Overview
+
+### Production Dependencies
+
+- `express`: ^4.18.2
+- `pg`: ^8.11.3
+- `bcryptjs`: ^2.4.3
+- `jsonwebtoken`: ^9.0.2
+- `cors`: ^2.8.5
+- `dotenv`: ^16.3.1
+
+### Development Dependencies
+
+- `nodemon`: ^3.0.1
+
+---
+
+## 📄 Source Code Files
+
+#### 📄 `package.json`
+
+```json
+{
+  "name": "lego-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
+```
+
+#### 📄 `.env`
+
+```env
+# ⚠️ 敏感資訊已隱藏，以下為結構範例：
+
+
+
+PORT=***HIDDEN***
+NODE_ENV=***HIDDEN***
+
+DB_USER=***HIDDEN***
+DB_HOST=***HIDDEN***
+DB_NAME=***HIDDEN***
+DB_PASSWORD=***HIDDEN***
+DB_PORT=***HIDDEN***
+
+JWT_SECRET=***HIDDEN***
+FRONTEND_URL=***HIDDEN***
+```
+
+#### 📄 `src\server.js`
+
+```javascript
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const authRoutes = require('./routes/auth');
+const postsRoutes = require('./routes/posts');
+const conversationsRoutes = require('./routes/conversations');
+const adminRoutes = require('./routes/admin');
+const tokensRoutes = require('./routes/tokens');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// ========================================
+// 🔧 中介軟體
+// ========================================
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
+
+// ========================================
+// 🛣️ 路由
+// ========================================
+app.use('/api/auth', authRoutes);
+app.use('/api/posts', postsRoutes);
+app.use('/api/conversations', conversationsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/tokens', tokensRoutes);
+
+// ========================================
+// 🏠 根路徑
+// ========================================
+app.get('/', (req, res) => {
+  res.json({ 
+    name: '👶 嬰幼兒產品交易平台 API',  // ✅ 改
+    version: '1.0.0',
+    status: 'running',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      authentication: '/api/auth',
+      posts: '/api/posts',
+      conversations: '/api/conversations',
+      admin: '/api/admin',
+      tokens: '/api/tokens'
+    }
+  });
+});
+
+// ========================================
+// 🩺 健康檢查路由
+// ========================================
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: '伺服器運行正常',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// ========================================
+// ❌ 404 錯誤處理
+// ========================================
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: '路徑不存在',
+    path: req.path,
+    method: req.method
+  });
+});
+
+// ========================================
+// ⚠️ 全域錯誤處理
+// ========================================
+app.use((err, req, res, next) => {
+  console.error('❌ 伺服器錯誤:', err);
+  res.status(500).json({ 
+    error: '伺服器內部錯誤',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// ========================================
+// 🚀 啟動伺服器
+// ========================================
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 伺服器運行在 port ${PORT}`);
+  console.log(`📝 環境: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 CORS 允許來源: ${process.env.FRONTEND_URL || '*'}`);
+});
+```
+
+#### 📄 `src\db.js`
+
+```javascript
+const { Pool } = require('pg');
+const dns = require('dns');
+require('dotenv').config();
+
+// 強制 IPv4
+dns.setDefaultResultOrder('ipv4first');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  },
+  connectionTimeoutMillis: 10000
+});
+
+(async () => {
+  try {
+    const client = await pool.connect();
+    console.log('✅ 資料庫連接成功');
+    client.release();
+  } catch (err) {
+    console.error('❌ 連接失敗:', err.message);
+  }
+})();
+
+module.exports = pool;
+```
+
+### 🛣️ Routes (API Endpoints)
+
+#### 📄 `src\routes\admin.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const { authenticateToken } = require('../middleware/auth');
+
+// ========================================
+// 🔒 檢查管理員權限
+// ========================================
+const requireAdmin = async (req, res, next) => {
+  if (!req.user.is_admin) {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+  next();
+};
+
+router.use(authenticateToken);
+router.use(requireAdmin);
+
+// ========================================
+// 📊 取得所有用戶
+// ========================================
+router.get('/users', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id,
+        u.username,
+        u.email,
+        u.phone,
+        u.tokens,
+        u.total_tokens_used,
+        u.is_admin,
+        u.created_at,
+        u.last_login,
+        COUNT(DISTINCT p.id) as posts_count,
+        COUNT(DISTINCT l.id) as likes_count
+      FROM users u
+      LEFT JOIN posts p ON u.id = p.user_id
+      LEFT JOIN likes l ON u.id = l.user_id
+      GROUP BY u.id
+      ORDER BY u.created_at DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('獲取用戶失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+// ========================================
+// ➕ 增加用戶 Token
+// ========================================
+router.post('/users/:id/add-tokens', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const userId = req.params.id;
+    const { amount, description } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: '數量必須大於 0' });
+    }
+
+    await client.query('BEGIN');
+
+    const userResult = await client.query(
+      'SELECT username, tokens FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+
+    const user = userResult.rows[0];
+    const newBalance = user.tokens + amount;
+
+    await client.query(
+      'UPDATE users SET tokens = tokens + $1 WHERE id = $2',
+      [amount, userId]
+    );
+
+    await client.query(
+      `INSERT INTO token_transactions (user_id, action, tokens_changed, balance_after, description)
+       VALUES ($1, 'admin_add', $2, $3, $4)`,
+      [userId, amount, newBalance, description || `管理員增加 ${amount} 次發佈機會`]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({ 
+      success: true,
+      username: user.username,
+      old_balance: user.tokens,
+      new_balance: newBalance,
+      message: `已為 ${user.username} 增加 ${amount} 次發佈機會`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('增加 Token 失敗:', error);
+    res.status(500).json({ error: '操作失敗' });
+  } finally {
+    client.release();
+  }
+});
+
+// ========================================
+// 📈 Token 使用統計（每日）
+// ========================================
+router.get('/stats/daily-tokens', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as transactions_count,
+        SUM(CASE WHEN tokens_changed < 0 THEN ABS(tokens_changed) ELSE 0 END) as tokens_used,
+        SUM(CASE WHEN tokens_changed > 0 THEN tokens_changed ELSE 0 END) as tokens_added
+      FROM token_transactions
+      WHERE created_at >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('獲取統計失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+// ========================================
+// 📊 總覽統計
+// ========================================
+router.get('/stats/overview', async (req, res) => {
+  try {
+    const stats = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM users) as total_users,
+        (SELECT COUNT(*) FROM posts WHERE status = 'available') as active_posts,
+        (SELECT COUNT(*) FROM posts WHERE type = 'sell' AND status = 'available') as sell_posts,
+        (SELECT COUNT(*) FROM posts WHERE type = 'buy' AND status = 'available') as buy_posts,
+        (SELECT SUM(tokens) FROM users) as total_tokens_remaining,
+        (SELECT SUM(total_tokens_used) FROM users) as total_tokens_used,
+        (SELECT COUNT(*) FROM users WHERE last_login >= NOW() - INTERVAL '7 days') as active_users_7d
+    `);
+    
+    res.json(stats.rows[0]);
+  } catch (error) {
+    console.error('獲取總覽失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+// ========================================
+// 📜 取得用戶 Token 歷史
+// ========================================
+router.get('/users/:id/token-history', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    
+    const result = await pool.query(`
+      SELECT 
+        id,
+        action,
+        tokens_changed,
+        balance_after,
+        description,
+        created_at
+      FROM token_transactions
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 50
+    `, [userId]);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('獲取歷史失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤' });
+  }
+});
+
+module.exports = router;
+```
+
+#### 📄 `src\routes\auth.js`
+
+```javascript
+// E:\Lego\lego-backend\src\routes\auth.js
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const pool = require('../db');
+const { authenticateToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+// ========================================
+// 🔐 註冊路由
+// ========================================
+router.post('/register', async (req, res) => {
+  try {
+    const { username, email, phone, password } = req.body;
+
+    // 驗證必填欄位
+    if (!username || !email || !phone || !password) {
+      return res.status(400).json({ error: '所有欄位都是必填的' });
+    }
+
+    // 驗證用戶名稱長度
+    if (username.length < 3 || username.length > 20) {
+      return res.status(400).json({ error: '用戶名稱必須是 3-20 個字符' });
+    }
+
+    // 驗證密碼長度
+    if (password.length < 6) {
+      return res.status(400).json({ error: '密碼必須至少 6 個字符' });
+    }
+
+    // 驗證電話格式（香港電話：8位數字）
+    const phoneRegex = /^\d{8}$/;
+    if (!phoneRegex.test(phone)) {
+      return res.status(400).json({ error: '請輸入有效的香港電話號碼（8位數字）' });
+    }
+
+    // 驗證電郵格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: '請輸入有效的電郵地址' });
+    }
+
+    // 檢查用戶名稱是否已存在
+    const usernameCheck = await pool.query(
+      'SELECT id FROM users WHERE username = $1',
+      [username]
+    );
+
+    if (usernameCheck.rows.length > 0) {
+      return res.status(400).json({ error: '用戶名稱已被使用' });
+    }
+
+    // 檢查電郵是否已存在
+    const emailCheck = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (emailCheck.rows.length > 0) {
+      return res.status(400).json({ error: '電郵地址已被註冊' });
+    }
+
+    // 檢查電話是否已存在
+    const phoneCheck = await pool.query(
+      'SELECT id FROM users WHERE phone = $1',
+      [phone]
+    );
+
+    if (phoneCheck.rows.length > 0) {
+      return res.status(400).json({ error: '電話號碼已被註冊' });
+    }
+
+    // 加密密碼
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    // 創建新用戶
+    const result = await pool.query(
+      `INSERT INTO users (username, email, phone, password_hash, tokens) 
+       VALUES ($1, $2, $3, $4, 10) 
+       RETURNING id, username, email, phone, tokens, is_admin, created_at`,
+      [username, email, phone, passwordHash]
+    );
+
+    const newUser = result.rows[0];
+
+    // 生成 JWT Token
+    const token = jwt.sign(
+      { 
+        id: newUser.id, 
+        username: newUser.username,
+        is_admin: newUser.is_admin 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({
+      message: '註冊成功！',
+      token,
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        phone: newUser.phone,
+        tokens: newUser.tokens,
+        is_admin: newUser.is_admin,
+        created_at: newUser.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('註冊錯誤:', error);
+    res.status(500).json({ error: '註冊失敗，請稍後再試' });
+  }
+});
+
+// ========================================
+// 🔑 登入路由（支援 username 或 phone）
+// ========================================
+router.post('/login', async (req, res) => {
+  try {
+    const { username, phone, password } = req.body;
+
+    // ✅ 允許用 username 或 phone 登入
+    const loginIdentifier = username || phone;
+
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({ error: '請輸入用戶名稱/電話和密碼' });
+    }
+
+    // ✅ 同時搜尋 username 和 phone
+    const result = await pool.query(
+      'SELECT * FROM users WHERE username = $1 OR phone = $1',
+      [loginIdentifier]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: '用戶名稱/電話或密碼錯誤' });
+    }
+
+    const user = result.rows[0];
+
+    // 驗證密碼
+    const validPassword = await bcrypt.compare(password, user.password_hash);
+
+    if (!validPassword) {
+      return res.status(400).json({ error: '用戶名稱/電話或密碼錯誤' });
+    }
+
+    // 更新最後登入時間
+    await pool.query(
+      'UPDATE users SET last_login = NOW() WHERE id = $1',
+      [user.id]
+    );
+
+    // 生成 JWT Token
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        username: user.username,
+        is_admin: user.is_admin 
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: '登入成功',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        tokens: user.tokens,
+        is_admin: user.is_admin
+      }
+    });
+
+  } catch (error) {
+    console.error('登入錯誤:', error);
+    res.status(500).json({ error: '登入失敗，請稍後再試' });
+  }
+});
+
+// ========================================
+// 👤 獲取當前用戶資料（需要登入）
+// ========================================
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, username, email, phone, tokens, is_admin, created_at, last_login FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+
+    res.json(result.rows[0]);
+
+  } catch (error) {
+    console.error('獲取用戶資料錯誤:', error);
+    res.status(500).json({ error: '無法獲取用戶資料' });
+  }
+});
+
+// ========================================
+// 🚪 登出路由（清除客戶端 token）
+// ========================================
+router.post('/logout', authenticateToken, (req, res) => {
+  // 前端會清除 localStorage 的 token
+  res.json({ message: '登出成功' });
+});
+
+module.exports = router;
+```
+
+#### 📄 `src\routes\conversations.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const { authenticateToken } = require('../middleware/auth');
+
+router.use(authenticateToken);
+
+// ========================================
+// 📋 獲取用戶所有對話（✅ 改用新欄位名）
+// ========================================
+router.get('/', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    console.log('📋 開始獲取對話，用戶 ID:', userId);
+
+    const result = await pool.query(`
+      SELECT 
+        c.id,
+        c.post_id,
+        c.last_message_at,
+        c.created_at,
+        c.buyer_id,
+        c.seller_id,
+        
+        -- ✅ 獲取帖子的第一個產品資料（新欄位名）
+        (
+          SELECT json_build_object(
+            'item_description', pi.item_description,
+            'category', pi.category,
+            'brand', pi.brand,
+            'price_per_unit', pi.price_per_unit
+          )
+          FROM post_items pi
+          WHERE pi.post_id = c.post_id
+          ORDER BY pi.id
+          LIMIT 1
+        ) as post_item,
+        
+        -- ✅ 帖子類型
+        p.type as post_type,
+        
+        -- 對方用戶資訊
+        CASE 
+          WHEN c.buyer_id = $1 THEN seller.username
+          ELSE buyer.username
+        END as other_username,
+        
+        CASE 
+          WHEN c.buyer_id = $1 THEN c.seller_id
+          ELSE c.buyer_id
+        END as other_user_id,
+        
+        -- 最後訊息
+        (
+          SELECT content 
+          FROM messages 
+          WHERE conversation_id = c.id 
+          ORDER BY created_at DESC 
+          LIMIT 1
+        ) as last_message,
+        
+        -- 未讀數
+        (
+          SELECT COUNT(*) 
+          FROM messages 
+          WHERE conversation_id = c.id 
+            AND sender_id != $1 
+            AND is_read = FALSE
+        )::integer as unread_count
+        
+      FROM conversations c
+      LEFT JOIN posts p ON c.post_id = p.id
+      LEFT JOIN users buyer ON c.buyer_id = buyer.id
+      LEFT JOIN users seller ON c.seller_id = seller.id
+      WHERE c.buyer_id = $1 OR c.seller_id = $1
+      ORDER BY c.last_message_at DESC
+    `, [userId]);
+
+    console.log('✅ 成功獲取對話，數量:', result.rows.length);
+
+    // ✅ 格式化數據（使用新欄位名）
+    const conversations = result.rows.map(row => {
+      const item = row.post_item || {};
+      
+      return {
+        id: row.id,
+        post_id: row.post_id,
+        last_message_at: row.last_message_at,
+        created_at: row.created_at,
+        
+        // ✅ 產品標題（使用新欄位）
+        post_title: item.item_description 
+          ? `${item.item_description} · ${item.category}` 
+          : '產品詳情',
+        
+        // ✅ 產品詳細資訊
+        post_item: item,
+        post_type: row.post_type,
+        
+        other_user: {
+          id: row.other_user_id,
+          username: row.other_username
+        },
+        last_message: row.last_message,
+        last_message_time: row.last_message_at,
+        unread_count: row.unread_count
+      };
+    });
+
+    res.json(conversations);
+  } catch (error) {
+    console.error('❌ 獲取對話失敗:', error);
+    res.status(500).json({ 
+      error: '伺服器錯誤', 
+      details: error.message
+    });
+  }
+});
+
+// ========================================
+// 💬 開始/獲取對話（✅ 唔使改）
+// ========================================
+router.post('/', async (req, res) => {
+  try {
+    const { post_id } = req.body;
+    const buyerId = req.user.id;
+
+    console.log('💬 開始對話請求:', { post_id, buyerId });
+
+    if (!post_id) {
+      return res.status(400).json({ error: '缺少 post_id' });
+    }
+
+    const postResult = await pool.query(
+      'SELECT user_id FROM posts WHERE id = $1',
+      [post_id]
+    );
+
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: '帖子不存在' });
+    }
+
+    const sellerId = postResult.rows[0].user_id;
+
+    if (buyerId === sellerId) {
+      return res.status(400).json({ error: '不能跟自己對話' });
+    }
+
+    let conversation = await pool.query(
+      `SELECT id FROM conversations 
+       WHERE post_id = $1 AND buyer_id = $2 AND seller_id = $3`,
+      [post_id, buyerId, sellerId]
+    );
+
+    let isNew = false;
+
+    if (conversation.rows.length === 0) {
+      conversation = await pool.query(
+        `INSERT INTO conversations (post_id, buyer_id, seller_id)
+         VALUES ($1, $2, $3)
+         RETURNING id`,
+        [post_id, buyerId, sellerId]
+      );
+      isNew = true;
+      console.log('✅ 創建新對話，ID:', conversation.rows[0].id);
+    } else {
+      console.log('✅ 對話已存在，ID:', conversation.rows[0].id);
+    }
+
+    res.json({
+      conversation_id: conversation.rows[0].id,
+      is_new: isNew
+    });
+  } catch (error) {
+    console.error('❌ 創建對話失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤', details: error.message });
+  }
+});
+
+// ========================================
+// 📜 獲取對話訊息（✅ 唔使改）
+// ========================================
+router.get('/:id/messages', async (req, res) => {
+  try {
+    const conversationId = req.params.id;
+    const userId = req.user.id;
+
+    console.log('📜 獲取訊息:', { conversationId, userId });
+
+    const conversationCheck = await pool.query(
+      `SELECT * FROM conversations 
+       WHERE id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
+      [conversationId, userId]
+    );
+
+    if (conversationCheck.rows.length === 0) {
+      return res.status(403).json({ error: '無權查看此對話' });
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        m.id,
+        m.sender_id,
+        u.username as sender_username,
+        m.content,
+        m.is_read,
+        m.created_at
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       WHERE m.conversation_id = $1
+       ORDER BY m.created_at ASC`,
+      [conversationId]
+    );
+
+    console.log('✅ 成功獲取訊息，數量:', result.rows.length);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ 獲取訊息失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤', details: error.message });
+  }
+});
+
+// ========================================
+// ✉️ 發送訊息（✅ 唔使改）
+// ========================================
+router.post('/:id/messages', async (req, res) => {
+  try {
+    const conversationId = req.params.id;
+    const senderId = req.user.id;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: '訊息內容不能為空' });
+    }
+
+    const conversationCheck = await pool.query(
+      `SELECT * FROM conversations 
+       WHERE id = $1 AND (buyer_id = $2 OR seller_id = $2)`,
+      [conversationId, senderId]
+    );
+
+    if (conversationCheck.rows.length === 0) {
+      return res.status(403).json({ error: '無權發送訊息到此對話' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO messages (conversation_id, sender_id, content)
+       VALUES ($1, $2, $3)
+       RETURNING id, sender_id, content, is_read, created_at`,
+      [conversationId, senderId, content.trim()]
+    );
+
+    await pool.query(
+      `UPDATE conversations 
+       SET last_message_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`,
+      [conversationId]
+    );
+
+    console.log('✅ 訊息已發送');
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('❌ 發送訊息失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤', details: error.message });
+  }
+});
+
+// ========================================
+// ✅ 標記對話已讀（✅ 唔使改）
+// ========================================
+router.put('/:id/read', async (req, res) => {
+  try {
+    const conversationId = req.params.id;
+    const userId = req.user.id;
+
+    await pool.query(
+      `UPDATE messages 
+       SET is_read = TRUE 
+       WHERE conversation_id = $1 
+         AND sender_id != $2 
+         AND is_read = FALSE`,
+      [conversationId, userId]
+    );
+
+    res.json({ message: '已標記為已讀' });
+  } catch (error) {
+    console.error('❌ 標記已讀失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤', details: error.message });
+  }
+});
+
+// ========================================
+// 🔔 獲取未讀訊息總數（✅ 唔使改）
+// ========================================
+router.get('/unread-count', async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT COUNT(*)::integer as count
+       FROM messages m
+       JOIN conversations c ON m.conversation_id = c.id
+       WHERE (c.buyer_id = $1 OR c.seller_id = $1)
+         AND m.sender_id != $1
+         AND m.is_read = FALSE`,
+      [userId]
+    );
+
+    res.json({ count: result.rows[0].count });
+  } catch (error) {
+    console.error('❌ 獲取未讀數失敗:', error);
+    res.status(500).json({ error: '伺服器錯誤', details: error.message });
+  }
+});
+
+module.exports = router;
+```
+
+#### 📄 `src\routes\leog.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const axios = require('axios');
+
+const REBRICKABLE_API = 'https://rebrickable.com/api/v3/lego';
+const API_KEY = process.env.REBRICKABLE_API_KEY;
+
+// 搜尋配件
+router.get('/parts/search', async (req, res) => {
+  try {
+    const { part_num } = req.query;
+    
+    const response = await axios.get(`${REBRICKABLE_API}/parts/${part_num}/`, {
+      params: { key: API_KEY }
+    });
+    
+    res.json({
+      part_num: response.data.part_num,
+      name: response.data.name,
+      part_cat_id: response.data.part_cat_id,
+      part_img_url: response.data.part_img_url,
+      part_material: response.data.part_material
+    });
+  } catch (error) {
+    console.error('搜尋配件失敗:', error.response?.data || error.message);
+    res.status(404).json({ error: '找不到此配件' });
+  }
+});
+
+module.exports = router;
+```
+
+#### 📄 `src\routes\posts.js`
+
+```javascript
+const express = require('express');
+const pool = require('../db');
+const { authenticateToken } = require('../middleware/auth');
+
+const router = express.Router();
+
+// ========================================
+// 📝 發佈交易（✅ 改用新 DB 欄位名）
+// ========================================
+router.post('/', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const { type, items, contact_info, notes } = req.body;
+    const userId = req.user.id;
+
+    console.log('📸 收到嘅 items:', JSON.stringify(items, null, 2));
+
+    if (!type || !items || items.length === 0) {
+      return res.status(400).json({ error: '請填寫交易類型和產品清單' });
+    }
+
+    await client.query('BEGIN');
+
+    const userResult = await client.query(
+      'SELECT tokens FROM users WHERE id = $1',
+      [userId]
+    );
+
+
+// ✅ 新 code：發 post 加 token
+await client.query(
+  'UPDATE users SET tokens = tokens + 1 WHERE id = $1',
+  [userId]
+);
+
+const newBalance = userResult.rows[0].tokens + 1;
+
+await client.query(
+  `INSERT INTO token_transactions (user_id, action, tokens_changed, balance_after, description)
+   VALUES ($1, 'post_create', 1, $2, '發佈交易獎勵')`,
+  [userId, newBalance]
+);
+
+    const postResult = await client.query(
+      `INSERT INTO posts (user_id, type, contact_info, notes)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [userId, type, contact_info, notes]
+    );
+
+    const post = postResult.rows[0];
+
+    // ✅ 改用新欄位名
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO post_items (
+          post_id, 
+          item_description, 
+          category, 
+          brand, 
+          price_per_unit,
+          condition,
+          image_url
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          post.id, 
+          item.item_description,     // ✅ 改名
+          item.category,             // ✅ 改名
+          item.brand || null,        // ✅ 改名
+          item.price_per_unit,
+          item.condition || null,
+          item.image_url || null
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      message: '發佈成功！剩餘發佈次數：' + newBalance,
+      post,
+      remaining_tokens: newBalance
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('發佈錯誤:', error);
+    res.status(500).json({ error: '發佈失敗，請稍後再試' });
+  } finally {
+    client.release();
+  }
+});
+
+// ========================================
+// 📋 取得所有交易（✅ 改用新欄位名）
+// ========================================
+router.get('/', async (req, res) => {
+  try {
+    const { type, status } = req.query;
+    const currentUserId = req.user?.id || null;
+
+    let query = `
+      SELECT 
+        p.*, 
+        u.username, 
+        u.phone,
+        COALESCE(
+          (SELECT COUNT(*) FROM likes WHERE post_id = p.id), 
+          0
+        ) as likes_count,
+        ${currentUserId ? `EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ${currentUserId})` : 'false'} as is_liked,
+        json_agg(
+          json_build_object(
+            'id', pi.id,
+            'item_description', pi.item_description,
+            'category', pi.category,
+            'brand', pi.brand,
+            'price_per_unit', pi.price_per_unit,
+            'condition', pi.condition,
+            'image_url', pi.image_url
+          ) ORDER BY pi.id
+        ) as items
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      LEFT JOIN post_items pi ON p.id = pi.post_id
+      WHERE 1=1
+    `;
+
+    const params = [];
+    let paramCount = 1;
+
+    if (type) {
+      query += ` AND p.type = $${paramCount}`;
+      params.push(type);
+      paramCount++;
+    }
+
+    if (status) {
+      query += ` AND p.status = $${paramCount}`;
+      params.push(status);
+      paramCount++;
+    }
+
+    query += ' GROUP BY p.id, u.username, u.phone ORDER BY p.created_at DESC';
+
+    const result = await pool.query(query, params);
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('取得交易錯誤:', error);
+    res.status(500).json({ error: '無法取得交易列表' });
+  }
+});
+
+// ========================================
+// 📦 取得我的交易（✅ 改用新欄位名）
+// ========================================
+router.get('/my-posts', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.*, 
+              u.username,
+              COALESCE(
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id), 
+                0
+              ) as likes_count,
+              json_agg(
+                json_build_object(
+                  'id', pi.id,
+                  'item_description', pi.item_description,
+                  'category', pi.category,
+                  'brand', pi.brand,
+                  'price_per_unit', pi.price_per_unit,
+                  'condition', pi.condition,
+                  'image_url', pi.image_url
+                ) ORDER BY pi.id
+              ) as items
+       FROM posts p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN post_items pi ON p.id = pi.post_id
+       WHERE p.user_id = $1
+       GROUP BY p.id, u.username
+       ORDER BY p.created_at DESC`,
+      [req.user.id]
+    );
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('取得我的交易錯誤:', error);
+    res.status(500).json({ error: '無法取得交易列表' });
+  }
+});
+
+// ========================================
+// 👑 管理員：取得所有用戶的交易（✅ 改用新欄位名）
+// ========================================
+router.get('/all-posts', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '無權限訪問' });
+    }
+
+    const result = await pool.query(
+      `SELECT p.*, 
+              u.username,
+              COALESCE(
+                (SELECT COUNT(*) FROM likes WHERE post_id = p.id), 
+                0
+              ) as likes_count,
+              EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = $1) as is_liked,
+              json_agg(
+                json_build_object(
+                  'id', pi.id,
+                  'item_description', pi.item_description,
+                  'category', pi.category,
+                  'brand', pi.brand,
+                  'price_per_unit', pi.price_per_unit,
+                  'condition', pi.condition,
+                  'image_url', pi.image_url
+                ) ORDER BY pi.id
+              ) as items
+       FROM posts p
+       JOIN users u ON p.user_id = u.id
+       LEFT JOIN post_items pi ON p.id = pi.post_id
+       GROUP BY p.id, u.username
+       ORDER BY p.created_at DESC`,
+      [req.user.id]
+    );
+
+    res.json(result.rows);
+
+  } catch (error) {
+    console.error('取得所有交易錯誤:', error);
+    res.status(500).json({ error: '無法取得交易列表' });
+  }
+});
+
+// ========================================
+// ✏️ 編輯貼文（✅ 改用新欄位名）
+// ========================================
+router.put('/:id/edit', authenticateToken, async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+    const { items } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: '請提供要修改的產品資料' });
+    }
+
+    await client.query('BEGIN');
+
+    const postCheck = await client.query(
+      'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
+      [postId, userId]
+    );
+
+    if (postCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '找不到此貼文或無權編輯' });
+    }
+
+
+
+    // ✅ 改用新欄位名（只更新 brand, price_per_unit, condition, image_url）
+    for (const item of items) {
+      const itemCheck = await client.query(
+        'SELECT * FROM post_items WHERE id = $1 AND post_id = $2',
+        [item.id, postId]
+      );
+
+      if (itemCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `產品 ID ${item.id} 不屬於此貼文` });
+      }
+
+      await client.query(
+        `UPDATE post_items 
+         SET brand = $1, 
+             price_per_unit = $2, 
+             condition = $3,
+             image_url = $4
+         WHERE id = $5`,
+        [
+          item.brand || null,       // ✅ 改名
+          item.price_per_unit, 
+          item.condition || null,
+          item.image_url || null,
+          item.id
+        ]
+      );
+    }
+
+    await client.query(
+      'UPDATE posts SET updated_at = NOW() WHERE id = $1',
+      [postId]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: '修改成功！剩餘發佈次數：' + newBalance,
+      remaining_tokens: newBalance
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('編輯貼文錯誤:', error);
+    res.status(500).json({ error: '編輯失敗，請稍後再試' });
+  } finally {
+    client.release();
+  }
+});
+
+// ========================================
+// ❤️ 點讚/取消點讚（✅ 唔使改）
+// ========================================
+router.post('/:id/like', authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+
+    const postCheck = await pool.query(
+      'SELECT id FROM posts WHERE id = $1',
+      [postId]
+    );
+
+    if (postCheck.rows.length === 0) {
+      return res.status(404).json({ error: '帖子不存在' });
+    }
+
+    const likeCheck = await pool.query(
+      'SELECT id FROM likes WHERE post_id = $1 AND user_id = $2',
+      [postId, userId]
+    );
+
+    let isLiked;
+
+    if (likeCheck.rows.length > 0) {
+      await pool.query(
+        'DELETE FROM likes WHERE post_id = $1 AND user_id = $2',
+        [postId, userId]
+      );
+      isLiked = false;
+    } else {
+      await pool.query(
+        'INSERT INTO likes (post_id, user_id) VALUES ($1, $2)',
+        [postId, userId]
+      );
+      isLiked = true;
+    }
+
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as count FROM likes WHERE post_id = $1',
+      [postId]
+    );
+
+    const likesCount = parseInt(countResult.rows[0].count);
+
+    res.json({
+      success: true,
+      is_liked: isLiked,
+      likes_count: likesCount,
+      message: isLiked ? '點讚成功' : '取消點讚'
+    });
+
+  } catch (error) {
+    console.error('點讚錯誤:', error);
+    res.status(500).json({ error: '操作失敗' });
+  }
+});
+
+// ========================================
+// 💬 獲取帖子留言（✅ 唔使改）
+// ========================================
+router.get('/:id/comments', authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const currentUserId = req.user.id;
+
+    const postResult = await pool.query(
+      'SELECT user_id FROM posts WHERE id = $1',
+      [postId]
+    );
+
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: '帖子不存在' });
+    }
+
+    const postOwnerId = postResult.rows[0].user_id;
+    const isPostOwner = currentUserId === postOwnerId;
+
+    let commentsResult;
+
+    if (isPostOwner) {
+      commentsResult = await pool.query(
+        `SELECT c.*, u.username 
+         FROM comments c
+         JOIN users u ON c.user_id = u.id
+         WHERE c.post_id = $1
+         ORDER BY c.created_at DESC`,
+        [postId]
+      );
+    } else {
+      commentsResult = await pool.query(
+        `SELECT c.*, u.username 
+         FROM comments c
+         JOIN users u ON c.user_id = u.id
+         WHERE c.post_id = $1 AND c.user_id = $2
+         ORDER BY c.created_at DESC`,
+        [postId, currentUserId]
+      );
+    }
+
+    res.json({
+      comments: commentsResult.rows,
+      is_post_owner: isPostOwner,
+      total_comments: commentsResult.rows.length
+    });
+
+  } catch (error) {
+    console.error('獲取留言錯誤:', error);
+    res.status(500).json({ error: '無法獲取留言' });
+  }
+});
+
+// ========================================
+// 💬 新增留言（✅ 唔使改）
+// ========================================
+router.post('/:id/comments', authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+    const { content } = req.body;
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: '留言內容不能為空' });
+    }
+
+    if (content.length > 500) {
+      return res.status(400).json({ error: '留言不能超過 500 字' });
+    }
+
+    const postCheck = await pool.query(
+      'SELECT id FROM posts WHERE id = $1',
+      [postId]
+    );
+
+    if (postCheck.rows.length === 0) {
+      return res.status(404).json({ error: '帖子不存在' });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO comments (post_id, user_id, content)
+       VALUES ($1, $2, $3)
+       RETURNING id, post_id, user_id, content, created_at`,
+      [postId, userId, content.trim()]
+    );
+
+    const comment = result.rows[0];
+
+    const userResult = await pool.query(
+      'SELECT username FROM users WHERE id = $1',
+      [userId]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: '留言成功',
+      comment: {
+        ...comment,
+        username: userResult.rows[0].username
+      }
+    });
+
+  } catch (error) {
+    console.error('留言錯誤:', error);
+    res.status(500).json({ error: '留言失敗' });
+  }
+});
+
+// ========================================
+// 🗑️ 刪除留言（✅ 唔使改）
+// ========================================
+router.delete('/:postId/comments/:commentId', authenticateToken, async (req, res) => {
+  try {
+    const { postId, commentId } = req.params;
+    const userId = req.user.id;
+
+    const commentCheck = await pool.query(
+      'SELECT * FROM comments WHERE id = $1 AND post_id = $2 AND user_id = $3',
+      [commentId, postId, userId]
+    );
+
+    if (commentCheck.rows.length === 0) {
+      return res.status(404).json({ error: '找不到此留言或無權刪除' });
+    }
+
+    await pool.query(
+      'DELETE FROM comments WHERE id = $1',
+      [commentId]
+    );
+
+    res.json({ 
+      success: true,
+      message: '留言已刪除' 
+    });
+
+  } catch (error) {
+    console.error('刪除留言錯誤:', error);
+    res.status(500).json({ error: '刪除失敗' });
+  }
+});
+
+// ========================================
+// 🗑️ 刪除交易（✅ 唔使改）
+// ========================================
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.id;
+    const isAdmin = req.user.is_admin;
+
+    const postResult = await pool.query(
+      'SELECT user_id FROM posts WHERE id = $1',
+      [postId]
+    );
+
+    if (postResult.rows.length === 0) {
+      return res.status(404).json({ error: '找不到此交易' });
+    }
+
+    const postOwnerId = postResult.rows[0].user_id;
+
+    if (postOwnerId !== userId && !isAdmin) {
+      return res.status(403).json({ error: '無權限刪除此貼文' });
+    }
+
+    await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
+
+    res.json({ 
+      success: true,
+      message: '刪除成功' 
+    });
+
+  } catch (error) {
+    console.error('刪除錯誤:', error);
+    res.status(500).json({ error: '刪除失敗' });
+  }
+});
+
+module.exports = router;
+```
+
+#### 📄 `src\routes\sms.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const twilio = require('twilio');
+const pool = require('../db');
+
+const client = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// 發送驗證碼
+router.post('/send-code', async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    // 檢查電話是否已註冊
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE phone = $1',
+      [phone]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: '此電話號碼已被註冊' });
+    }
+
+    // 生成 6 位驗證碼
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 儲存驗證碼（5分鐘有效期）
+    await pool.query(
+      `INSERT INTO sms_verifications (phone, code, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '5 minutes')
+       ON CONFLICT (phone) 
+       DO UPDATE SET code = $2, expires_at = NOW() + INTERVAL '5 minutes', created_at = NOW()`,
+      [phone, code]
+    );
+
+    // 發送 SMS
+    await client.messages.create({
+      body: `你的樂高交易平台驗證碼是：${code}（5分鐘內有效）`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: `+852${phone}`  // 香港電話
+    });
+
+    res.json({ message: '驗證碼已發送' });
+  } catch (error) {
+    console.error('發送驗證碼失敗:', error);
+    res.status(500).json({ error: '發送失敗，請稍後再試' });
+  }
+});
+
+// 驗證驗證碼
+router.post('/verify-code', async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+
+    const result = await pool.query(
+      `SELECT * FROM sms_verifications 
+       WHERE phone = $1 AND code = $2 AND expires_at > NOW()`,
+      [phone, code]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: '驗證碼錯誤或已過期' });
+    }
+
+    // 刪除已驗證的驗證碼
+    await pool.query(
+      'DELETE FROM sms_verifications WHERE phone = $1',
+      [phone]
+    );
+
+    res.json({ verified: true });
+  } catch (error) {
+    console.error('驗證失敗:', error);
+    res.status(500).json({ error: '驗證失敗' });
+  }
+});
+
+module.exports = router;
+```
+
+#### 📄 `src\routes\tokens.js`
+
+```javascript
+const express = require('express');
+const router = express.Router();
+const pool = require('../db');
+const { authenticateToken } = require('../middleware/auth');
+
+router.use(authenticateToken);
+
+// ========================================
+// 🎁 睇廣告賺 Token
+// ========================================
+router.post('/earn', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    const userId = req.user.id;
+
+    await client.query('BEGIN');
+
+    const userResult = await client.query(
+      'SELECT username, tokens FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: '用戶不存在' });
+    }
+
+    const user = userResult.rows[0];
+    const earnAmount = 1;
+    const newBalance = user.tokens + earnAmount;
+
+    await client.query(
+      'UPDATE users SET tokens = tokens + $1 WHERE id = $2',
+      [earnAmount, userId]
+    );
+
+    await client.query(
+      `INSERT INTO token_transactions (
+        user_id, 
+        action, 
+        tokens_changed, 
+        balance_after, 
+        description
+      )
+      VALUES ($1, 'ad_watched', $2, $3, $4)`,
+      [userId, earnAmount, newBalance, `觀看廣告賺取 ${earnAmount} 次發佈機會`]
+    );
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      earned: earnAmount,
+      new_balance: newBalance,
+      message: `恭喜！你獲得 ${earnAmount} 次發佈機會`
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('賺 Token 失敗:', error);
+    res.status(500).json({ error: '操作失敗' });
+  } finally {
+    client.release();
+  }
+});
+
+module.exports = router;
+```
+
+### 🔒 Middleware
+
+#### 📄 `src\middleware\auth.js`
+
+```javascript
+const jwt = require('jsonwebtoken');
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: '需要登入' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Token 無效' });
+    }
+    req.user = user;
+    next();
+  });
+}
+
+function authenticateAdmin(req, res, next) {
+  if (!req.user.is_admin) {
+    return res.status(403).json({ error: '需要管理員權限' });
+  }
+  next();
+}
+
+module.exports = { authenticateToken, authenticateAdmin };
+```
+
+#### 📄 `package-lock.json`
+
+```json
 {
   "name": "lego-backend",
   "version": "1.0.0",
@@ -8,19 +1773,16 @@
       "name": "lego-backend",
       "version": "1.0.0",
       "dependencies": {
+        "bcrypt": "^6.0.0",
         "bcryptjs": "^2.4.3",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",
         "jsonwebtoken": "^9.0.2",
-        "multer": "^2.0.2",
         "pg": "^8.11.3"
       },
       "devDependencies": {
-        "nodemon": "^3.0.1"
-      },
-      "engines": {
-        "node": ">=18.x"
+        "nodemon": "^3.0.2"
       }
     },
     "node_modules/accepts": {
@@ -50,12 +1812,6 @@
         "node": ">= 8"
       }
     },
-    "node_modules/append-field": {
-      "version": "1.0.0",
-      "resolved": "https://registry.npmjs.org/append-field/-/append-field-1.0.0.tgz",
-      "integrity": "sha512-klpgFSWLW1ZEs8svjfb7g4qWY0YS5imI82dTg+QahUvJ8YqAY0P10Uk8tTyh9ZGuYEZEMaeJYCF5BFuX552hsw==",
-      "license": "MIT"
-    },
     "node_modules/array-flatten": {
       "version": "1.1.1",
       "resolved": "https://registry.npmjs.org/array-flatten/-/array-flatten-1.1.1.tgz",
@@ -68,6 +1824,20 @@
       "integrity": "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==",
       "dev": true,
       "license": "MIT"
+    },
+    "node_modules/bcrypt": {
+      "version": "6.0.0",
+      "resolved": "https://registry.npmjs.org/bcrypt/-/bcrypt-6.0.0.tgz",
+      "integrity": "sha512-cU8v/EGSrnH+HnxV2z0J7/blxH8gq7Xh2JFT6Aroax7UohdmiJJlxApMxtKfuI7z68NvvVcmR78k2LbT6efhRg==",
+      "hasInstallScript": true,
+      "license": "MIT",
+      "dependencies": {
+        "node-addon-api": "^8.3.0",
+        "node-gyp-build": "^4.8.4"
+      },
+      "engines": {
+        "node": ">= 18"
+      }
     },
     "node_modules/bcryptjs": {
       "version": "2.4.3",
@@ -157,23 +1927,6 @@
       "integrity": "sha512-zRpUiDwd/xk6ADqPMATG8vc9VPrkck7T07OIx0gnjmJAnHnTVXNQG3vfvWNuiZIkwu9KrKdA1iJKfsfTVxE6NA==",
       "license": "BSD-3-Clause"
     },
-    "node_modules/buffer-from": {
-      "version": "1.1.2",
-      "resolved": "https://registry.npmjs.org/buffer-from/-/buffer-from-1.1.2.tgz",
-      "integrity": "sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==",
-      "license": "MIT"
-    },
-    "node_modules/busboy": {
-      "version": "1.6.0",
-      "resolved": "https://registry.npmjs.org/busboy/-/busboy-1.6.0.tgz",
-      "integrity": "sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==",
-      "dependencies": {
-        "streamsearch": "^1.1.0"
-      },
-      "engines": {
-        "node": ">=10.16.0"
-      }
-    },
     "node_modules/bytes": {
       "version": "3.1.2",
       "resolved": "https://registry.npmjs.org/bytes/-/bytes-3.1.2.tgz",
@@ -243,21 +1996,6 @@
       "integrity": "sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==",
       "dev": true,
       "license": "MIT"
-    },
-    "node_modules/concat-stream": {
-      "version": "2.0.0",
-      "resolved": "https://registry.npmjs.org/concat-stream/-/concat-stream-2.0.0.tgz",
-      "integrity": "sha512-MWufYdFw53ccGjCA+Ol7XJYpAlW6/prSMzuPOTRnJGcGzuhLn4Scrz7qf6o8bROZ514ltazcIFJZevcfbo0x7A==",
-      "engines": [
-        "node >= 6.0"
-      ],
-      "license": "MIT",
-      "dependencies": {
-        "buffer-from": "^1.0.0",
-        "inherits": "^2.0.3",
-        "readable-stream": "^3.0.2",
-        "typedarray": "^0.0.6"
-      }
     },
     "node_modules/content-disposition": {
       "version": "0.5.4",
@@ -952,50 +2690,11 @@
         "node": "*"
       }
     },
-    "node_modules/minimist": {
-      "version": "1.2.8",
-      "resolved": "https://registry.npmjs.org/minimist/-/minimist-1.2.8.tgz",
-      "integrity": "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==",
-      "license": "MIT",
-      "funding": {
-        "url": "https://github.com/sponsors/ljharb"
-      }
-    },
-    "node_modules/mkdirp": {
-      "version": "0.5.6",
-      "resolved": "https://registry.npmjs.org/mkdirp/-/mkdirp-0.5.6.tgz",
-      "integrity": "sha512-FP+p8RB8OWpF3YZBCrP5gtADmtXApB5AMLn+vdyA+PyxCjrCs00mjyUozssO33cwDeT3wNGdLxJ5M//YqtHAJw==",
-      "license": "MIT",
-      "dependencies": {
-        "minimist": "^1.2.6"
-      },
-      "bin": {
-        "mkdirp": "bin/cmd.js"
-      }
-    },
     "node_modules/ms": {
       "version": "2.1.3",
       "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.3.tgz",
       "integrity": "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==",
       "license": "MIT"
-    },
-    "node_modules/multer": {
-      "version": "2.0.2",
-      "resolved": "https://registry.npmjs.org/multer/-/multer-2.0.2.tgz",
-      "integrity": "sha512-u7f2xaZ/UG8oLXHvtF/oWTRvT44p9ecwBBqTwgJVq0+4BW1g8OW01TyMEGWBHbyMOYVHXslaut7qEQ1meATXgw==",
-      "license": "MIT",
-      "dependencies": {
-        "append-field": "^1.0.0",
-        "busboy": "^1.6.0",
-        "concat-stream": "^2.0.0",
-        "mkdirp": "^0.5.6",
-        "object-assign": "^4.1.1",
-        "type-is": "^1.6.18",
-        "xtend": "^4.0.2"
-      },
-      "engines": {
-        "node": ">= 10.16.0"
-      }
     },
     "node_modules/negotiator": {
       "version": "0.6.3",
@@ -1004,6 +2703,26 @@
       "license": "MIT",
       "engines": {
         "node": ">= 0.6"
+      }
+    },
+    "node_modules/node-addon-api": {
+      "version": "8.5.0",
+      "resolved": "https://registry.npmjs.org/node-addon-api/-/node-addon-api-8.5.0.tgz",
+      "integrity": "sha512-/bRZty2mXUIFY/xU5HLvveNHlswNJej+RnxBjOMkidWfwZzgTbPG1E3K5TOxRLOR+5hX7bSofy8yf1hZevMS8A==",
+      "license": "MIT",
+      "engines": {
+        "node": "^18 || ^20 || >= 21"
+      }
+    },
+    "node_modules/node-gyp-build": {
+      "version": "4.8.4",
+      "resolved": "https://registry.npmjs.org/node-gyp-build/-/node-gyp-build-4.8.4.tgz",
+      "integrity": "sha512-LA4ZjwlnUblHVgq0oBF3Jl/6h/Nvs5fzBLwdEF4nuxnFdsfajde4WfxtJr3CaiH+F6ewcIB/q4jQ4UzPyid+CQ==",
+      "license": "MIT",
+      "bin": {
+        "node-gyp-build": "bin.js",
+        "node-gyp-build-optional": "optional.js",
+        "node-gyp-build-test": "build-test.js"
       }
     },
     "node_modules/nodemon": {
@@ -1292,20 +3011,6 @@
       },
       "engines": {
         "node": ">= 0.8"
-      }
-    },
-    "node_modules/readable-stream": {
-      "version": "3.6.2",
-      "resolved": "https://registry.npmjs.org/readable-stream/-/readable-stream-3.6.2.tgz",
-      "integrity": "sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==",
-      "license": "MIT",
-      "dependencies": {
-        "inherits": "^2.0.3",
-        "string_decoder": "^1.1.1",
-        "util-deprecate": "^1.0.1"
-      },
-      "engines": {
-        "node": ">= 6"
       }
     },
     "node_modules/readdirp": {
@@ -1620,23 +3325,6 @@
         "node": ">= 0.8"
       }
     },
-    "node_modules/streamsearch": {
-      "version": "1.1.0",
-      "resolved": "https://registry.npmjs.org/streamsearch/-/streamsearch-1.1.0.tgz",
-      "integrity": "sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==",
-      "engines": {
-        "node": ">=10.0.0"
-      }
-    },
-    "node_modules/string_decoder": {
-      "version": "1.3.0",
-      "resolved": "https://registry.npmjs.org/string_decoder/-/string_decoder-1.3.0.tgz",
-      "integrity": "sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==",
-      "license": "MIT",
-      "dependencies": {
-        "safe-buffer": "~5.2.0"
-      }
-    },
     "node_modules/supports-color": {
       "version": "5.5.0",
       "resolved": "https://registry.npmjs.org/supports-color/-/supports-color-5.5.0.tgz",
@@ -1695,12 +3383,6 @@
         "node": ">= 0.6"
       }
     },
-    "node_modules/typedarray": {
-      "version": "0.0.6",
-      "resolved": "https://registry.npmjs.org/typedarray/-/typedarray-0.0.6.tgz",
-      "integrity": "sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==",
-      "license": "MIT"
-    },
     "node_modules/undefsafe": {
       "version": "2.0.5",
       "resolved": "https://registry.npmjs.org/undefsafe/-/undefsafe-2.0.5.tgz",
@@ -1716,12 +3398,6 @@
       "engines": {
         "node": ">= 0.8"
       }
-    },
-    "node_modules/util-deprecate": {
-      "version": "1.0.2",
-      "resolved": "https://registry.npmjs.org/util-deprecate/-/util-deprecate-1.0.2.tgz",
-      "integrity": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==",
-      "license": "MIT"
     },
     "node_modules/utils-merge": {
       "version": "1.0.1",
@@ -1752,3 +3428,82 @@
     }
   }
 }
+
+```
+
+---
+
+## 🗺️ API Routes Overview
+
+### Authentication (`/api/auth`)
+
+- `POST /api/auth/register` - 用戶註冊
+- `POST /api/auth/login` - 用戶登入
+- `POST /api/auth/logout` - 用戶登出
+- `GET /api/auth/me` - 獲取當前用戶資料
+
+### Posts (`/api/posts`)
+
+- `GET /api/posts` - 獲取所有帖子
+- `GET /api/posts/:id` - 獲取單個帖子
+- `POST /api/posts` - 創建帖子（需登入）
+- `PUT /api/posts/:id` - 更新帖子（需登入）
+- `DELETE /api/posts/:id` - 刪除帖子（需登入）
+- `POST /api/posts/:id/like` - 點讚/取消點讚（需登入）
+
+---
+
+## 🗄️ Database Schema
+
+### Tables
+
+1. **users** - 用戶資料
+2. **posts** - 帖子資料
+3. **parts** - 樂高配件資料
+4. **comments** - 留言資料
+5. **likes** - 點讚記錄
+
+---
+
+## ⚙️ Environment Variables
+
+| 變數名稱 | 說明 | 範例值 |
+|---------|------|--------|
+| `PORT` | 伺服器端口 | `5000` |
+| `DB_USER` | 資料庫用戶名 | `postgres` |
+| `DB_HOST` | 資料庫主機 | `localhost` |
+| `DB_NAME` | 資料庫名稱 | `lego_forum` |
+| `DB_PASSWORD` | 資料庫密碼 | `your_password` |
+| `DB_PORT` | 資料庫端口 | `5432` |
+| `JWT_SECRET` | JWT 密鑰 | `your-secret-key` |
+
+---
+
+## 📊 Project Statistics
+
+- **總文件數**: 13
+- **總代碼行數**: 3,309
+- **文件類型分佈**:
+  - `.env`: 1 個文件
+  - `.js`: 10 個文件
+  - `.json`: 2 個文件
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# 1. 安裝依賴
+npm install
+
+# 2. 配置環境變數
+cp .env.example .env
+# 然後編輯 .env 填入你的資料庫資訊
+
+# 3. 初始化資料庫
+psql -U postgres -d lego_forum -f schema.sql
+
+# 4. 啟動開發伺服器
+npm run dev
+```
+
