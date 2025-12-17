@@ -13,20 +13,20 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ========================================
-// 🔧 CORS 設定（✅ 修改這裡）
+// 🔧 CORS 設定（✅ 支援 Vercel）
 // ========================================
 app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://babyproduct4exchange.vercel.app'  // ✅ 加入你的 Vercel 網址
+    'https://babyproduct4exchange.vercel.app'  // ✅ Vercel 網址
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ✅ 處理 OPTIONS 請求（Preflight）
+// ✅ 處理 Preflight
 app.options('*', cors());
 
 // ✅ JSON 處理
@@ -105,5 +105,5 @@ app.use((err, req, res, next) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 伺服器運行在 port ${PORT}`);
   console.log(`📝 環境: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌍 CORS 允許來源: Vercel + localhost`);
+  console.log(`🌍 CORS 允許: localhost + Vercel`);
 });

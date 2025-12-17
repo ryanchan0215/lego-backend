@@ -1,64 +1,95 @@
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const pool = require('../db');
+const { authenticateToken } = require('../middleware/auth');
 
 // ========================================
-// 📥 獲取所有資源（公開）
+// 📋 取得所有資源
 // ========================================
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('resources')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const result = await pool.query(`
+      SELECT 
+        r.*,
+        u.username as uploader_name
+      FROM resources r
+      LEFT JOIN users u ON r.uploaded_by = u.id
+      ORDER BY r.created_at DESC
+    `);
 
-    if (error) throw error;
-
-    res.json(data || []);
+    res.json(result.rows);
   } catch (error) {
-    console.error('獲取資源失敗:', error);
-    res.status(500).json({ error: '獲取資源失敗' });
+    console.error('❌ 取得資源失敗:', error);
+    res.status(500).json({ 
+      error: '伺服器錯誤',
+      details: error.message 
+    });
   }
 });
 
 // ========================================
-// 📤 上載資源（只有管理員）
+// 📤 儲存資源（Frontend 已 Upload 到 Supabase）
 // ========================================
-router.post('/upload', authenticateToken, requireAdmin, async (req, res) => {
+router.post('/upload', authenticateToken, async (req, res) => {
   try {
+    console.log('📝 收到資源儲存請求');
+    console.log('👤 用戶:', req.user);
+    console.log('📄 資料:', req.body);
+
+    // 檢查管理員權限
+    if (!req.user.is_admin) {
+      console.log('❌ 非管理員');
+      return res.status(403).json({ error: '只有管理員可以上載資源' });
+    }
+
     const { title, description, category, file_name, file_path, file_size } = req.body;
 
     if (!title || !category || !file_name || !file_path) {
-      return res.status(400).json({ error: '缺少必要欄位' });
+      console.log('❌ 缺少必填欄位');
+      return res.status(400).json({ error: '請填寫所有必填欄位' });
     }
 
-    const { data, error } = await supabase
-      .from('resources')
-      .insert([{
+    // ✅ 儲存到資料庫，初始化 download_count 為 0
+    const result = await pool.query(
+      `INSERT INTO resources (
+        title, 
+        description, 
+        category, 
+        file_name, 
+        file_path, 
+        file_size, 
+        uploaded_by,
+        download_count
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
+      RETURNING *`,
+      [
         title,
-        description,
+        description || null,
         category,
         file_name,
         file_path,
         file_size,
-        uploaded_by: req.user.id,
-        download_count: 0  // ✅ 初始化下載次數
-      }])
-      .select()
-      .single();
+        req.user.id
+      ]
+    );
 
-    if (error) throw error;
+    console.log('✅ 資源儲存成功:', result.rows[0]);
 
-    res.status(201).json(data);
+    res.status(201).json({
+      success: true,
+      message: '上載成功',
+      resource: result.rows[0]
+    });
+
   } catch (error) {
-    console.error('上載資源失敗:', error);
-    res.status(500).json({ error: '上載資源失敗' });
+    console.error('❌ 儲存失敗:', error);
+    console.error('錯誤堆疊:', error.stack);
+
+    res.status(500).json({ 
+      error: '儲存失敗',
+      details: error.message 
+    });
   }
 });
 
@@ -67,52 +98,63 @@ router.post('/upload', authenticateToken, requireAdmin, async (req, res) => {
 // ========================================
 router.post('/:id/download', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // ✅ 先獲取目前的下載次數
-    const { data: resource, error: fetchError } = await supabase
-      .from('resources')
-      .select('download_count')
-      .eq('id', id)
-      .single();
-
-    if (fetchError) throw fetchError;
+    const resourceId = req.params.id;
 
     // ✅ 增加下載次數
-    const { error: updateError } = await supabase
-      .from('resources')
-      .update({ 
-        download_count: (resource.download_count || 0) + 1 
-      })
-      .eq('id', id);
+    const result = await pool.query(
+      `UPDATE resources 
+       SET download_count = download_count + 1 
+       WHERE id = $1 
+       RETURNING download_count`,
+      [resourceId]
+    );
 
-    if (updateError) throw updateError;
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '資源不存在' });
+    }
 
-    res.json({ success: true });
+    res.json({ 
+      success: true,
+      download_count: result.rows[0].download_count
+    });
+
   } catch (error) {
-    console.error('記錄下載失敗:', error);
-    res.status(500).json({ error: '記錄下載失敗' });
+    console.error('❌ 記錄下載失敗:', error);
+    res.status(500).json({ 
+      error: '記錄下載失敗',
+      details: error.message 
+    });
   }
 });
 
 // ========================================
-// 🗑️ 刪除資源（只有管理員）
+// 🗑️ 刪除資源（只限管理員）
 // ========================================
-router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
+    if (!req.user.is_admin) {
+      return res.status(403).json({ error: '只有管理員可以刪除資源' });
+    }
 
-    const { error } = await supabase
-      .from('resources')
-      .delete()
-      .eq('id', id);
+    const resourceId = req.params.id;
 
-    if (error) throw error;
+    const result = await pool.query(
+      'DELETE FROM resources WHERE id = $1 RETURNING *',
+      [resourceId]
+    );
 
-    res.json({ success: true });
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: '資源不存在' });
+    }
+
+    res.json({ success: true, message: '刪除成功' });
+
   } catch (error) {
-    console.error('刪除資源失敗:', error);
-    res.status(500).json({ error: '刪除資源失敗' });
+    console.error('❌ 刪除失敗:', error);
+    res.status(500).json({ 
+      error: '刪除失敗',
+      details: error.message 
+    });
   }
 });
 
