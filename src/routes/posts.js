@@ -27,25 +27,20 @@ router.post('/', authenticateToken, async (req, res) => {
       [userId]
     );
 
-    if (userResult.rows[0].tokens < 1) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        error: '發佈次數不足，請聯絡客服購買' 
-      });
-    }
 
-    await client.query(
-      'UPDATE users SET tokens = tokens - 1, total_tokens_used = total_tokens_used + 1 WHERE id = $1',
-      [userId]
-    );
+// ✅ 新 code：發 post 加 token
+await client.query(
+  'UPDATE users SET tokens = tokens + 1 WHERE id = $1',
+  [userId]
+);
 
-    const newBalance = userResult.rows[0].tokens - 1;
+const newBalance = userResult.rows[0].tokens + 1;
 
-    await client.query(
-      `INSERT INTO token_transactions (user_id, action, tokens_changed, balance_after, description)
-       VALUES ($1, 'post_create', -1, $2, '發佈交易')`,
-      [userId, newBalance]
-    );
+await client.query(
+  `INSERT INTO token_transactions (user_id, action, tokens_changed, balance_after, description)
+   VALUES ($1, 'post_create', 1, $2, '發佈交易獎勵')`,
+  [userId, newBalance]
+);
 
     const postResult = await client.query(
       `INSERT INTO posts (user_id, type, contact_info, notes)
@@ -271,30 +266,7 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: '找不到此貼文或無權編輯' });
     }
 
-    const userResult = await client.query(
-      'SELECT tokens FROM users WHERE id = $1',
-      [userId]
-    );
 
-    if (userResult.rows[0].tokens < 1) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ 
-        error: '發佈次數不足，無法編輯貼文' 
-      });
-    }
-
-    await client.query(
-      'UPDATE users SET tokens = tokens - 1, total_tokens_used = total_tokens_used + 1 WHERE id = $1',
-      [userId]
-    );
-
-    const newBalance = userResult.rows[0].tokens - 1;
-
-    await client.query(
-      `INSERT INTO token_transactions (user_id, action, tokens_changed, balance_after, description)
-       VALUES ($1, 'post_edit', -1, $2, $3)`,
-      [userId, newBalance, `編輯貼文 #${postId}`]
-    );
 
     // ✅ 改用新欄位名（只更新 brand, price_per_unit, condition, image_url）
     for (const item of items) {
