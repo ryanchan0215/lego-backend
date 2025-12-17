@@ -240,7 +240,7 @@ router.get('/all-posts', authenticateToken, async (req, res) => {
 });
 
 // ========================================
-// ✏️ 編輯貼文（✅ 改用新欄位名）
+// ✏️ 編輯貼文（只改價錢）
 // ========================================
 router.put('/:id/edit', authenticateToken, async (req, res) => {
   const client = await pool.connect();
@@ -250,12 +250,15 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
     const userId = req.user.id;
     const { items } = req.body;
 
+    console.log('📝 收到編輯請求:', { postId, userId, items });
+
     if (!items || items.length === 0) {
       return res.status(400).json({ error: '請提供要修改的產品資料' });
     }
 
     await client.query('BEGIN');
 
+    // ✅ 檢查貼文權限
     const postCheck = await client.query(
       'SELECT * FROM posts WHERE id = $1 AND user_id = $2',
       [postId, userId]
@@ -266,9 +269,7 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: '找不到此貼文或無權編輯' });
     }
 
-
-
-    // ✅ 改用新欄位名（只更新 brand, price_per_unit, condition, image_url）
+    // ✅ 只更新價錢
     for (const item of items) {
       const itemCheck = await client.query(
         'SELECT * FROM post_items WHERE id = $1 AND post_id = $2',
@@ -282,21 +283,13 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
 
       await client.query(
         `UPDATE post_items 
-         SET brand = $1, 
-             price_per_unit = $2, 
-             condition = $3,
-             image_url = $4
-         WHERE id = $5`,
-        [
-          item.brand || null,       // ✅ 改名
-          item.price_per_unit, 
-          item.condition || null,
-          item.image_url || null,
-          item.id
-        ]
+         SET price_per_unit = $1
+         WHERE id = $2`,
+        [item.price_per_unit, item.id]
       );
     }
 
+    // ✅ 更新貼文時間
     await client.query(
       'UPDATE posts SET updated_at = NOW() WHERE id = $1',
       [postId]
@@ -304,15 +297,16 @@ router.put('/:id/edit', authenticateToken, async (req, res) => {
 
     await client.query('COMMIT');
 
+    console.log('✅ 編輯成功');
+
     res.json({
       success: true,
-      message: '修改成功！剩餘發佈次數：' + newBalance,
-      remaining_tokens: newBalance
+      message: '修改成功！'
     });
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('編輯貼文錯誤:', error);
+    console.error('❌ 編輯貼文錯誤:', error);
     res.status(500).json({ error: '編輯失敗，請稍後再試' });
   } finally {
     client.release();

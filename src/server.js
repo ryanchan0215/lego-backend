@@ -23,9 +23,17 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ✅ 增加 JSON 限制到 50MB
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// ✅ 只對 JSON 請求增加限制（唔影響 FormData）
+app.use((req, res, next) => {
+  if (req.is('application/json')) {
+    express.json({ limit: '10mb' })(req, res, next);
+  } else {
+    next();
+  }
+});
+
+// ✅ 處理 URL-encoded 表單
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ========================================
 // 🛣️ 路由
@@ -92,9 +100,7 @@ app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ 
       error: '檔案太大',
-      message: '請上傳小於 50MB 的檔案',
-      limit: '50MB',
-      received: `${(err.length / 1024 / 1024).toFixed(2)}MB`
+      message: '請上傳小於 10MB 的檔案'
     });
   }
   
