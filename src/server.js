@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');  // ✅ 加返呢行（雖然唔再用，但保留住先）
+const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -8,7 +8,7 @@ const postsRoutes = require('./routes/posts');
 const conversationsRoutes = require('./routes/conversations');
 const adminRoutes = require('./routes/admin');
 const tokensRoutes = require('./routes/tokens');
-const resourcesRoutes = require('./routes/resources');  // ✅ 確認有呢行
+const resourcesRoutes = require('./routes/resources');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,10 +23,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
-
-// ❌ 唔再需要呢行（但如果你其他地方有用 uploads，就保留）
-// app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// ✅ 增加 JSON 限制到 50MB
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ========================================
 // 🛣️ 路由
@@ -36,7 +35,7 @@ app.use('/api/posts', postsRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/tokens', tokensRoutes);
-app.use('/api/resources', resourcesRoutes);  // ✅ 確認有呢行
+app.use('/api/resources', resourcesRoutes);
 
 // ========================================
 // 🏠 根路徑
@@ -55,7 +54,7 @@ app.get('/', (req, res) => {
       conversations: '/api/conversations',
       admin: '/api/admin',
       tokens: '/api/tokens',
-      resources: '/api/resources'  // ✅ 確認有呢行
+      resources: '/api/resources'
     }
   });
 });
@@ -88,6 +87,17 @@ app.use((req, res) => {
 // ========================================
 app.use((err, req, res, next) => {
   console.error('❌ 伺服器錯誤:', err);
+  
+  // ✅ 特殊處理 PayloadTooLargeError
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ 
+      error: '檔案太大',
+      message: '請上傳小於 50MB 的檔案',
+      limit: '50MB',
+      received: `${(err.length / 1024 / 1024).toFixed(2)}MB`
+    });
+  }
+  
   res.status(500).json({ 
     error: '伺服器內部錯誤',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
