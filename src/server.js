@@ -1,6 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -23,16 +22,8 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ✅ 只對 JSON 請求增加限制（唔影響 FormData）
-app.use((req, res, next) => {
-  if (req.is('application/json')) {
-    express.json({ limit: '10mb' })(req, res, next);
-  } else {
-    next();
-  }
-});
-
-// ✅ 處理 URL-encoded 表單
+// ✅ 簡單版（支援 JSON）
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ========================================
@@ -95,15 +86,6 @@ app.use((req, res) => {
 // ========================================
 app.use((err, req, res, next) => {
   console.error('❌ 伺服器錯誤:', err);
-  
-  // ✅ 特殊處理 PayloadTooLargeError
-  if (err.type === 'entity.too.large') {
-    return res.status(413).json({ 
-      error: '檔案太大',
-      message: '請上傳小於 10MB 的檔案'
-    });
-  }
-  
   res.status(500).json({ 
     error: '伺服器內部錯誤',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined
